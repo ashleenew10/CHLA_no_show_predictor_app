@@ -4,20 +4,12 @@ import numpy as np
 import pandas as pd
 
 # Load the trained model
-@st.cache_resource
-def load_model():
-    with open("best_no_show_model.pkl", "rb") as file:
-        return pickle.load(file)
+with open("best_no_show_model.pkl", "rb") as file:
+    model = pickle.load(file)  
 
-best_model = load_model()
-
-# Load the trained encoders
-@st.cache_resource
-def load_encoders():
-    with open("NEW_no_show_encoder.pkl", "rb") as encoder_file:
-        return pickle.load(encoder_file)
-
-encoder_dict = load_encoders()
+# Load the encoder dictionary
+with open("NEW_no_show_encoder.pkl", "rb") as encoder_file:
+    encoder_dict = pickle.load(encoder_file)
 
 # Load the cleaned 2024 dataset
 @st.cache_data
@@ -31,10 +23,10 @@ category_col = ['ZIPCODE', 'CLINIC', 'IS_REPEAT', 'APPT_TYPE_STANDARDIZE',
                 'ETHNICITY_STANDARDIZE', 'RACE_STANDARDIZE']
 
 # Expected features in the trained model
-expected_features = best_model.feature_names_in_
+expected_features = model.feature_names_in_ 
 
 # Function to preprocess input data
-def preprocess_input(df):
+def preprocess_input(df, encoder_dict):
     """
     Encodes categorical features and ensures input matches model training.
     """
@@ -62,7 +54,9 @@ def predict_no_show(features):
     """
     Predicts No-Show status and probability.
     """
-    y_prob = best_model.predict_proba(features)[:, 1]  # Probability of No-Show
+    no_show_index = model.classes_.tolist().index(1)  # Get index of "No-Show" class
+
+    y_prob = model.predict_proba(features)[:, no_show_index]  # Probability of No-Show
     y_pred = np.where(y_prob >= 0.5, "No-Show", "Show-Up")
 
     return y_pred, y_prob.round(2)
@@ -94,8 +88,7 @@ def main():
             # Keep necessary identifiers for output
             output_data = df_filtered[["MRN", "APPT_ID", "APPT_DATE", "HOUR_OF_DAY"]].copy()
 
-            # Preprocess data for prediction
-            X_input = preprocess_input(df_filtered)
+            X_input = preprocess_input(df_filtered, encoder_dict)
 
             # Get predictions
             y_pred, y_prob = predict_no_show(X_input)
@@ -110,5 +103,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
